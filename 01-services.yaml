@@ -1,0 +1,44 @@
+# Headless service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+  namespace: infrastructure
+  labels:
+    app: mariadb
+spec:
+  ports:
+  - port: 3306
+    name: mariadb-port
+  clusterIP: None
+  selector:
+    app: mariadb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.19.0 (f63a961c)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: keycloak-app-service
+  name: keycloak-app-service
+  namespace: infrastructure
+spec:
+  ports:
+  - name: "8443"
+    port: 8443
+    protocol: TCP
+    targetPort: 8443
+  - name: "8080"
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    io.kompose.service: keycloak-app-service
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

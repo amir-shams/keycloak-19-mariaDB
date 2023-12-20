@@ -1,0 +1,156 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: keycloack-19-cert
+  namespace: infrastructure
+spec:
+  secretName: keycloack-19-secret
+  renewBefore: 12h
+  dnsNames:
+    - "<Your-Domain-Name>"
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.19.0 (f63a961c)
+  labels:
+    io.kompose.service: keycloak-app-service
+  name: keycloak-app-deployment
+  namespace: infrastructure
+spec:
+  progressDeadlineSeconds: 2147483647
+  replicas: 1
+  revisionHistoryLimit: 2147483647
+  selector:
+    matchLabels:
+      io.kompose.service: keycloak-app-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.19.0 (f63a961c)
+      labels:
+        io.kompose.service: keycloak-app-service
+    spec:
+      containers:
+      - env:
+        - name: KEYCLOAK_ADMIN
+          valueFrom:
+            configMapKeyRef:
+              key: KEYCLOAK_ADMIN
+              name: keycloak-app-env
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              key: KEYCLOAK_ADMIN_PASSWORD
+              name: keycloak-app-env
+        - name: KC_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              key: KC_HOSTNAME
+              name: keycloak-app-env
+        - name: KC_PROXY
+          valueFrom:
+            configMapKeyRef:
+              key: KC_PROXY
+              name: keycloak-app-env
+        - name: KC_DB
+          valueFrom:
+            configMapKeyRef:
+              key: KC_DB
+              name: keycloak-app-env
+        - name: KC_DB_URL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              key: KC_DB_URL_DATABASE
+              name: keycloak-app-env
+        - name: KC_DB_URL_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: KC_DB_URL_HOST
+              name: keycloak-app-env
+        - name: KC_DB_URL_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: KC_DB_URL_PORT
+              name: keycloak-app-env
+        - name: KC_DB_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              key: KC_DB_USERNAME
+              name: keycloak-app-env
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              key: KC_DB_PASSWORD
+              name: keycloak-app-env
+        - name: KC_CACHE
+          valueFrom:
+            configMapKeyRef:
+              key: KC_CACHE
+              name: keycloak-app-env
+        - name: KC_CACHE_STACK
+          valueFrom:
+            configMapKeyRef:
+              key: KC_CACHE_STACK
+              name: keycloak-app-env
+        - name: KC_FEATURES
+          valueFrom:
+            configMapKeyRef:
+              key: KC_FEATURES
+              name: keycloak-app-env
+
+        image: quay.stg.dc.afranet.co/keycloak/keycloak:19.0.3
+        imagePullPolicy: IfNotPresent
+        args: ["start"]
+        name: keycloak-app-deployment-pod
+        ports:
+        - containerPort: 8443
+          protocol: TCP
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        tty: true
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: docker
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  labels:
+    io.kompose.service: keycloak-app-service
+  name: keycloak-19
+  namespace: infrastructure
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`<Your-Domain-Name>`)
+      kind: Rule
+      services:
+        - name: keycloak-app-service
+          port: 8080
+  tls:
+    secretName: keycloack-19-secret
